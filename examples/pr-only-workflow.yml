@@ -1,0 +1,47 @@
+# Dev XP Analysis - Merged PRs Only
+# This workflow only analyzes merged pull requests
+# Copy this file to your repository: .github/workflows/devxp-pr-only.yml
+
+name: Dev XP PR Analysis
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master
+      - develop
+      - release/*
+
+jobs:
+  analyze:
+    name: Analyze Merged PR
+    # Only run when PR is merged (not just closed)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Full history needed for accurate PR diff
+          fetch-depth: 0
+
+      - name: Analyze PR with Dev XP
+        id: devxp
+        uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+        with:
+          api-token: ${{ secrets.DEVXP_API_TOKEN }}
+          event-type: pull_request
+
+      - name: Comment on PR (optional)
+        if: steps.devxp.outputs.status == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📊 **Dev XP Analysis Submitted**\n\nSkill analysis for this PR has been submitted to Dev XP.\n\nWorkflow ID: \`${{ steps.devxp.outputs.workflow-id }}\``
+            })

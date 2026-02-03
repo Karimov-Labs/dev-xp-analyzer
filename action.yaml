@@ -1,0 +1,130 @@
+name: 'Dev XP Scanner'
+description: 'Automatically analyze code changes and track developer skills with Dev XP platform'
+author: 'Karimov Labs'
+branding:
+  icon: 'bar-chart-2'
+  color: 'purple'
+
+inputs:
+  api-token:
+    description: 'Dev XP API token for authentication (get it from your Dev XP dashboard)'
+    required: true
+  api-endpoint:
+    description: 'Dev XP API endpoint URL'
+    required: false
+    default: 'https://api.devxp.net'
+  event-type:
+    description: 'Type of event to analyze: "push" for single commits, "pull_request" for PR merges'
+    required: false
+    default: 'auto'
+  include-file-content:
+    description: 'Include file diff content in analysis (increases accuracy but uses more bandwidth)'
+    required: false
+    default: 'false'
+  max-files:
+    description: 'Maximum number of files to include in analysis per event'
+    required: false
+    default: '100'
+  mask-usernames:
+    description: 'Hash usernames using SHA-256 for privacy (recommended for regulated environments)'
+    required: false
+    default: 'false'
+  masking-salt:
+    description: 'Optional salt for username hashing (use a consistent value across your organization for correlation)'
+    required: false
+    default: ''
+
+outputs:
+  status:
+    description: 'Status of the analysis submission (success/failed)'
+    value: ${{ steps.submit.outputs.status }}
+  workflow-id:
+    description: 'Dev XP workflow ID for tracking'
+    value: ${{ steps.submit.outputs.workflow_id }}
+  message:
+    description: 'Response message from Dev XP API'
+    value: ${{ steps.submit.outputs.message }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.api-token }}" ]; then
+          echo "❌ Error: api-token is required"
+          exit 1
+        fi
+        echo "✅ Inputs validated"
+
+    - name: Setup masking function
+      id: masking
+      shell: bash
+      env:
+        INPUT_MASK_USERNAMES: ${{ inputs.mask-usernames }}
+        INPUT_MASKING_SALT: ${{ inputs.masking-salt }}
+      run: ${{ github.action_path }}/scripts/setup_masking.sh
+
+    - name: Detect event type
+      id: detect
+      shell: bash
+      env:
+        INPUT_EVENT_TYPE: ${{ inputs.event-type }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+      run: ${{ github.action_path }}/scripts/detect_event.sh
+
+    - name: Collect commit data (push event)
+      id: collect_push
+      if: steps.detect.outputs.event_type == 'push'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GITHUB_SHA: ${{ github.sha }}
+        GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        INPUT_MAX_FILES: ${{ inputs.max-files }}
+        MASKING_SALT: ${{ steps.masking.outputs.salt }}
+        MASKING_ENABLED: ${{ steps.masking.outputs.enabled }}
+      run: ${{ github.action_path }}/scripts/collect_push_data.sh
+
+    - name: Collect PR data (pull_request event)
+      id: collect_pr
+      if: steps.detect.outputs.event_type == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        INPUT_MAX_FILES: ${{ inputs.max-files }}
+        MASKING_SALT: ${{ steps.masking.outputs.salt }}
+        MASKING_ENABLED: ${{ steps.masking.outputs.enabled }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        RAW_PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        PR_MERGED_AT: ${{ github.event.pull_request.merged_at }}
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+        PR_HEAD: ${{ github.event.pull_request.head.sha }}
+      run: ${{ github.action_path }}/scripts/collect_pr_data.sh
+
+    - name: Build payload
+      id: payload
+      shell: bash
+      env:
+        DETECTED_EVENT_TYPE: ${{ steps.detect.outputs.event_type }}
+        RAW_SENDER: ${{ github.actor }}
+        MASKING_SALT: ${{ steps.masking.outputs.salt }}
+        MASKING_ENABLED: ${{ steps.masking.outputs.enabled }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        COMMITS_JSON: ${{ steps.collect_push.outputs.commits_json }}
+        PR_DATA_JSON: ${{ steps.collect_pr.outputs.pr_json }}
+      run: ${{ github.action_path }}/scripts/build_payload.sh
+
+    - name: Submit to Dev XP
+      id: submit
+      shell: bash
+      env:
+        API_ENDPOINT: ${{ inputs.api-endpoint }}
+        API_TOKEN: ${{ inputs.api-token }}
+      run: ${{ github.action_path }}/scripts/submit_analysis.sh
+
+    - name: Cleanup
+      if: always()
+      shell: bash
+      run: rm -f /tmp/mask_username.sh /tmp/devxp_payload.json

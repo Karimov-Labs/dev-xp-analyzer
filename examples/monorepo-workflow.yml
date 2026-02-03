@@ -1,0 +1,70 @@
+# Dev XP Analysis - Monorepo Configuration
+# For repositories with multiple services/packages
+# Copy this file to your repository: .github/workflows/devxp-monorepo.yml
+
+name: Dev XP Monorepo Analysis
+
+on:
+  push:
+    branches: [main]
+    # Only trigger when specific paths change
+    paths:
+      - 'packages/**'
+      - 'services/**'
+      - 'apps/**'
+  pull_request:
+    types: [closed]
+    branches: [main]
+    paths:
+      - 'packages/**'
+      - 'services/**'
+      - 'apps/**'
+
+jobs:
+  analyze:
+    name: Analyze Code Changes
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 2 }}
+
+      - name: Analyze with Dev XP
+        uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+        with:
+          api-token: ${{ secrets.DEVXP_API_TOKEN }}
+          # Increase max files for monorepos
+          max-files: 200
+
+  # Optional: Run analysis per package for better attribution
+  analyze-packages:
+    name: Analyze Changed Packages
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get changed packages
+        id: changed
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            frontend:
+              - 'packages/frontend/**'
+            backend:
+              - 'packages/backend/**'
+            shared:
+              - 'packages/shared/**'
+
+      - name: Log changed packages
+        run: |
+          echo "Frontend changed: ${{ steps.changed.outputs.frontend }}"
+          echo "Backend changed: ${{ steps.changed.outputs.backend }}"
+          echo "Shared changed: ${{ steps.changed.outputs.shared }}"

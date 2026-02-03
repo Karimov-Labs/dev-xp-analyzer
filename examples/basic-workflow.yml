@@ -1,0 +1,55 @@
+# Dev XP Analysis Workflow
+# Copy this file to your repository: .github/workflows/devxp.yml
+
+name: Dev XP Analysis
+
+on:
+  # Analyze code on push to main branches
+  push:
+    branches: [main, master]
+
+  # Analyze merged pull requests
+  pull_request:
+    types: [closed]
+    branches: [main, master]
+
+jobs:
+  analyze:
+    name: Analyze Code Changes
+    # Only run on:
+    # - Direct pushes to main branch
+    # - Merged pull requests (not closed without merge)
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout with enough history for diff comparison
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth: 2 is minimum for push events
+          # fetch-depth: 0 is recommended for PR events (full history)
+          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 2 }}
+
+      # Run Dev XP analysis
+      - name: Analyze with Dev XP
+        id: devxp
+        uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+        with:
+          # Required: Your Dev XP API token
+          # Get it from: https://devxp.io/dashboard/settings/api-tokens
+          api-token: ${{ secrets.DEVXP_API_TOKEN }}
+
+          # Optional: Custom API endpoint (for self-hosted instances)
+          # api-endpoint: https://api.devxp.io
+
+          # Optional: Maximum files to analyze per event (default: 100)
+          # max-files: 100
+
+      # Optional: Log the analysis result
+      - name: Log Analysis Result
+        if: always()
+        run: |
+          echo "Status: ${{ steps.devxp.outputs.status }}"
+          echo "Workflow ID: ${{ steps.devxp.outputs.workflow-id }}"
+          echo "Message: ${{ steps.devxp.outputs.message }}"
