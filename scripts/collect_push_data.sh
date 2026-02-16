@@ -3,6 +3,11 @@ set -e
 
 echo "📥 Collecting push event data..."
 
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "❌ Git repository not found in workspace. Add 'actions/checkout@v4' before using Karimov-Labs/dev-xp-analyzer."
+  exit 1
+fi
+
 # Get commit details
 COMMIT_SHA="$GITHUB_SHA"
 BEFORE_SHA="$GITHUB_EVENT_BEFORE"
