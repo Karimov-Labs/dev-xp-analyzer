@@ -12,11 +12,15 @@ inputs:
   api-endpoint:
     description: 'Dev XP API endpoint URL'
     required: false
-    default: 'https://api.devxp.net'
+    default: 'https://ga.devxp.net'
   event-type:
     description: 'Type of event to analyze: "push" for single commits, "pull_request" for PR merges'
     required: false
     default: 'auto'
+  repository-source:
+    description: 'Repository provider/host override for non-GitHub sources (e.g. gitlab.com, bitbucket.org, ghe.company.com)'
+    required: false
+    default: ''
   include-file-content:
     description: 'Include file diff content in analysis (increases accuracy but uses more bandwidth)'
     required: false
@@ -108,6 +112,7 @@ runs:
       shell: bash
       env:
         DETECTED_EVENT_TYPE: ${{ steps.detect.outputs.event_type }}
+        INPUT_REPOSITORY_SOURCE: ${{ inputs.repository-source }}
         RAW_SENDER: ${{ github.actor }}
         MASKING_SALT: ${{ steps.masking.outputs.salt }}
         MASKING_ENABLED: ${{ steps.masking.outputs.enabled }}
