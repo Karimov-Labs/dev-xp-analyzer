@@ -75,6 +75,7 @@ runs:
       env:
         INPUT_EVENT_TYPE: ${{ inputs.event-type }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
       run: ${{ github.action_path }}/scripts/detect_event.sh
 
     - name: Collect commit data (push event)

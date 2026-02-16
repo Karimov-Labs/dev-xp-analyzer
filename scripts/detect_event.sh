@@ -2,6 +2,7 @@
 set -e
 
 EVENT_TYPE="$INPUT_EVENT_TYPE"
+PR_NUMBER_RAW="${PR_NUMBER:-}"
 
 if [ "$EVENT_TYPE" = "auto" ]; then
   if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
@@ -12,6 +13,11 @@ if [ "$EVENT_TYPE" = "auto" ]; then
     echo "⚠️ Unsupported GitHub event: $GITHUB_EVENT_NAME, defaulting to push"
     EVENT_TYPE="push"
   fi
+fi
+
+if [ "$EVENT_TYPE" = "pull_request" ] && [ -z "$PR_NUMBER_RAW" ]; then
+  echo "⚠️ pull_request event type requested but no PR context found. Falling back to push analysis."
+  EVENT_TYPE="push"
 fi
 
 # Validate final event type
