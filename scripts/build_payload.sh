@@ -7,6 +7,7 @@ echo "📦 Building payload..."
 EVENT_TYPE="$DETECTED_EVENT_TYPE"
 SENDER=$(/tmp/mask_username.sh "$RAW_SENDER" "$MASKING_SALT")
 REPOSITORY_SOURCE="$INPUT_REPOSITORY_SOURCE"
+SOURCE_EVENT_ID="$INPUT_SOURCE_EVENT_ID"
 
 if [ -z "$REPOSITORY_SOURCE" ]; then
   REPOSITORY_SOURCE=$(printf '%s' "$GITHUB_SERVER_URL" | sed -E 's#^https?://##; s#/.*$##')
@@ -21,6 +22,7 @@ if [ "$EVENT_TYPE" = "push" ]; then
     --arg repository_source "$REPOSITORY_SOURCE" \
     --arg repo_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
     --arg default_branch "$DEFAULT_BRANCH" \
+    --arg source_event_id "$SOURCE_EVENT_ID" \
     --argjson commits "$COMMITS_JSON" \
     --argjson usernames_masked "$MASKING_ENABLED" \
     '{
@@ -32,7 +34,8 @@ if [ "$EVENT_TYPE" = "push" ]; then
       event_type: $event_type,
       sender: $sender,
       usernames_masked: $usernames_masked,
-      commits: $commits
+      commits: $commits,
+      source_event_id: (if $source_event_id == "" then null else $source_event_id end)
     }'
   )
 else
@@ -44,6 +47,7 @@ else
     --arg repository_source "$REPOSITORY_SOURCE" \
     --arg repo_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
     --arg default_branch "$DEFAULT_BRANCH" \
+    --arg source_event_id "$SOURCE_EVENT_ID" \
     --argjson pull_request "$PR_DATA_JSON" \
     --argjson usernames_masked "$MASKING_ENABLED" \
     '{
@@ -55,7 +59,8 @@ else
       event_type: $event_type,
       sender: $sender,
       usernames_masked: $usernames_masked,
-      pull_request: $pull_request
+      pull_request: $pull_request,
+      source_event_id: (if $source_event_id == "" then null else $source_event_id end)
     }'
   )
 fi

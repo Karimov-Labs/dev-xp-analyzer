@@ -7,7 +7,7 @@ echo "🚀 Submitting analysis data to Dev XP..."
 
 # Submit the payload
 RESPONSE=$(curl -s -w "\n%{http_code}" \
-  -X POST "${API_ENDPOINT}/analyze" \
+  -X POST "${API_ENDPOINT}/ingest/git-metrics" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${API_TOKEN}" \
   -d @/tmp/devxp_payload.json)

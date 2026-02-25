@@ -12,7 +12,7 @@ inputs:
   api-endpoint:
     description: 'Dev XP API endpoint URL'
     required: false
-    default: 'https://ga.devxp.net'
+    default: 'https://push.devxp.net'
   event-type:
     description: 'Type of event to analyze: "push" for single commits, "pull_request" for PR merges'
     required: false
@@ -35,6 +35,10 @@ inputs:
     default: 'false'
   masking-salt:
     description: 'Optional salt for username hashing (use a consistent value across your organization for correlation)'
+    required: false
+    default: ''
+  source-event-id:
+    description: 'Optional client-provided event identifier used as idempotency key; when provided, duplicate push events with the same source_event_id are skipped'
     required: false
     default: ''
 
@@ -120,6 +124,7 @@ runs:
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         COMMITS_JSON: ${{ steps.collect_push.outputs.commits_json }}
         PR_DATA_JSON: ${{ steps.collect_pr.outputs.pr_json }}
+        INPUT_SOURCE_EVENT_ID: ${{ inputs.source-event-id }}
       run: ${{ github.action_path }}/scripts/build_payload.sh
 
     - name: Submit to Dev XP

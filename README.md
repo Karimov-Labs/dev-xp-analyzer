@@ -70,6 +70,7 @@ jobs:
 | `max-files` | Maximum files to include per event | No | `100` |
 | `mask-usernames` | Hash usernames using SHA-256 for privacy | No | `false` |
 | `masking-salt` | Salt for username hashing (use consistent value across org) | No | `''` |
+| `source_event_id` | Optional client-controlled key to enable dedupe guard (same key = deduped) | No | `''` |
 
 ## Outputs
 
