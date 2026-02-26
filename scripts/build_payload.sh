@@ -13,12 +13,29 @@ if [ -z "$REPOSITORY_SOURCE" ]; then
   REPOSITORY_SOURCE=$(printf '%s' "$GITHUB_SERVER_URL" | sed -E 's#^https?://##; s#/.*$##')
 fi
 
+SOURCE_NORMALIZED=$(printf '%s' "$REPOSITORY_SOURCE" | tr '[:upper:]' '[:lower:]')
+case "$SOURCE_NORMALIZED" in
+  github|github.com|*.github.com)
+    PROVIDER="github"
+    ;;
+  gitlab|gitlab.com|*.gitlab.com)
+    PROVIDER="gitlab"
+    ;;
+  bitbucket|bitbucket.org|*.bitbucket.org)
+    PROVIDER="bitbucket"
+    ;;
+  *)
+    PROVIDER="$SOURCE_NORMALIZED"
+    ;;
+esac
+
 if [ "$EVENT_TYPE" = "push" ]; then
   PAYLOAD=$(jq -n \
     --arg repo "$GITHUB_REPOSITORY" \
     --arg ref "$GITHUB_REF" \
     --arg event_type "push" \
     --arg sender "$SENDER" \
+    --arg provider "$PROVIDER" \
     --arg repository_source "$REPOSITORY_SOURCE" \
     --arg repo_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
     --arg default_branch "$DEFAULT_BRANCH" \
@@ -28,6 +45,7 @@ if [ "$EVENT_TYPE" = "push" ]; then
     '{
       repository: $repo,
       repository_url: $repo_url,
+      provider: $provider,
       repository_source: $repository_source,
       ref: $ref,
       default_branch: $default_branch,
@@ -44,6 +62,7 @@ else
     --arg ref "$GITHUB_REF" \
     --arg event_type "pull_request" \
     --arg sender "$SENDER" \
+    --arg provider "$PROVIDER" \
     --arg repository_source "$REPOSITORY_SOURCE" \
     --arg repo_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
     --arg default_branch "$DEFAULT_BRANCH" \
@@ -53,6 +72,7 @@ else
     '{
       repository: $repo,
       repository_url: $repo_url,
+      provider: $provider,
       repository_source: $repository_source,
       ref: $ref,
       default_branch: $default_branch,
