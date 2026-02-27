@@ -6,28 +6,15 @@ echo "📦 Building payload..."
 # Variables
 EVENT_TYPE="$DETECTED_EVENT_TYPE"
 SENDER=$(/tmp/mask_username.sh "$RAW_SENDER" "$MASKING_SALT")
-REPOSITORY_SOURCE="$INPUT_REPOSITORY_SOURCE"
 SOURCE_EVENT_ID="$INPUT_SOURCE_EVENT_ID"
+EXTERNAL_REPO_ID="$GITHUB_REPOSITORY_ID"
 
+REPOSITORY_SOURCE=$(printf '%s' "$GITHUB_SERVER_URL" | sed -E 's#^https?://##; s#/.*$##')
 if [ -z "$REPOSITORY_SOURCE" ]; then
-  REPOSITORY_SOURCE=$(printf '%s' "$GITHUB_SERVER_URL" | sed -E 's#^https?://##; s#/.*$##')
+  REPOSITORY_SOURCE="github.com"
 fi
 
-SOURCE_NORMALIZED=$(printf '%s' "$REPOSITORY_SOURCE" | tr '[:upper:]' '[:lower:]')
-case "$SOURCE_NORMALIZED" in
-  github|github.com|*.github.com)
-    PROVIDER="github"
-    ;;
-  gitlab|gitlab.com|*.gitlab.com)
-    PROVIDER="gitlab"
-    ;;
-  bitbucket|bitbucket.org|*.bitbucket.org)
-    PROVIDER="bitbucket"
-    ;;
-  *)
-    PROVIDER="$SOURCE_NORMALIZED"
-    ;;
-esac
+PROVIDER="github"
 
 if [ "$EVENT_TYPE" = "push" ]; then
   PAYLOAD=$(jq -n \
@@ -37,6 +24,7 @@ if [ "$EVENT_TYPE" = "push" ]; then
     --arg sender "$SENDER" \
     --arg provider "$PROVIDER" \
     --arg repository_source "$REPOSITORY_SOURCE" \
+    --arg external_repo_id "$EXTERNAL_REPO_ID" \
     --arg repo_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
     --arg default_branch "$DEFAULT_BRANCH" \
     --arg source_event_id "$SOURCE_EVENT_ID" \
@@ -47,6 +35,7 @@ if [ "$EVENT_TYPE" = "push" ]; then
       repository_url: $repo_url,
       provider: $provider,
       repository_source: $repository_source,
+      external_repo_id: (if $external_repo_id == "" then null else $external_repo_id end),
       ref: $ref,
       default_branch: $default_branch,
       event_type: $event_type,
@@ -64,6 +53,7 @@ else
     --arg sender "$SENDER" \
     --arg provider "$PROVIDER" \
     --arg repository_source "$REPOSITORY_SOURCE" \
+    --arg external_repo_id "$EXTERNAL_REPO_ID" \
     --arg repo_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
     --arg default_branch "$DEFAULT_BRANCH" \
     --arg source_event_id "$SOURCE_EVENT_ID" \
@@ -74,6 +64,7 @@ else
       repository_url: $repo_url,
       provider: $provider,
       repository_source: $repository_source,
+      external_repo_id: (if $external_repo_id == "" then null else $external_repo_id end),
       ref: $ref,
       default_branch: $default_branch,
       event_type: $event_type,

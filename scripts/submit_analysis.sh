@@ -32,6 +32,11 @@ else
   ERROR_MSG=$(echo "$BODY" | jq -r '.error // .message // "Unknown error"')
   echo "message=$ERROR_MSG" >> $GITHUB_OUTPUT
   echo "❌ Failed to submit analysis: $ERROR_MSG"
+  if [ "$HTTP_CODE" = "401" ]; then
+    echo "💡 Hint: The ingestion token is invalid/expired or not formatted as expected."
+  elif [ "$HTTP_CODE" = "403" ]; then
+    echo "💡 Hint: Token is valid but repository access is forbidden. Verify repository binding in Dev XP and that repository identity matches (provider + external_repo_id/full_name)."
+  fi
   echo "Response body: $BODY"
   exit 1
 fi

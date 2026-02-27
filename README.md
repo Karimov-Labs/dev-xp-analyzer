@@ -64,13 +64,13 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `api-token` | Dev XP API token for authentication | Yes | - |
-| `api-endpoint` | Dev XP API endpoint URL | No | `https://api.devxp.net` |
+| `api-endpoint` | Dev XP API endpoint URL | No | `https://push.devxp.net` |
 | `event-type` | Event type: `push`, `pull_request`, or `auto` | No | `auto` |
 | `include-file-content` | Include file diff content (increases accuracy) | No | `false` |
 | `max-files` | Maximum files to include per event | No | `100` |
 | `mask-usernames` | Hash usernames using SHA-256 for privacy | No | `false` |
 | `masking-salt` | Salt for username hashing (use consistent value across org) | No | `''` |
-| `source_event_id` | Optional client-controlled key to enable dedupe guard (same key = deduped) | No | `''` |
+| `source-event-id` | Optional client-controlled key to enable dedupe guard (same key = deduped) | No | `''` |
 
 ## Outputs
 
@@ -311,6 +311,14 @@ Make sure you're passing the `api-token` input:
   with:
     api-token: ${{ secrets.DEVXP_API_TOKEN }}  # Don't forget this!
 ```
+
+### "403 Failed to submit analysis" Error
+
+This usually means the token is valid but repository lookup/binding is not authorized.
+
+1. Verify the repository is connected in Dev XP and push ingestion is enabled.
+2. Confirm your GitHub repository is the same one bound to that ingestion key in Dev XP.
+3. Recreate the binding in Dev XP if the repository was renamed/transferred.
 
 ### No Files Detected
 
