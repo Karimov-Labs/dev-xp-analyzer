@@ -40,6 +40,7 @@ RAW_PR_COMMITS=$(gh api \
     sha: .sha,
     author: .commit.author.name,
     author_email: .commit.author.email,
+    github_username: (.author.login // null),
     message: .commit.message,
     timestamp: .commit.author.date
   }]'
@@ -47,16 +48,7 @@ RAW_PR_COMMITS=$(gh api \
 
 # Apply masking to commit authors if enabled
 if [ "$MASKING_ENABLED" = "true" ]; then
-  PR_COMMITS=$(echo "$RAW_PR_COMMITS" | jq -c --arg salt "$SALT" '
-    [.[] | {
-      sha: .sha,
-      author: (.author | @sh | "echo -n " + . + " | cat -v" | @sh),
-      author_email: .author_email,
-      message: .message,
-      timestamp: .timestamp
-    }]
-  ')
-  # Process each commit to hash authors
+  # Process each commit to hash authors and github usernames
   MASKED_COMMITS="[]"
   for row in $(echo "$RAW_PR_COMMITS" | jq -r '.[] | @base64'); do
     _jq() {
@@ -65,14 +57,25 @@ if [ "$MASKING_ENABLED" = "true" ]; then
     SHA=$(_jq '.sha')
     RAW_COMMIT_AUTHOR=$(_jq '.author')
     RAW_COMMIT_EMAIL=$(_jq '.author_email')
+    RAW_GH_USERNAME=$(_jq '.github_username // empty')
     MSG=$(_jq '.message')
     TS=$(_jq '.timestamp')
 
     MASKED_AUTHOR=$(/tmp/mask_username.sh "$RAW_COMMIT_AUTHOR" "$SALT")
     MASKED_EMAIL=$(/tmp/mask_username.sh "$RAW_COMMIT_EMAIL" "$SALT")
+    MASKED_GH_USERNAME=""
+    if [ -n "$RAW_GH_USERNAME" ]; then
+      MASKED_GH_USERNAME=$(/tmp/mask_username.sh "$RAW_GH_USERNAME" "$SALT")
+    fi
 
-    MASKED_COMMITS=$(echo "$MASKED_COMMITS" | jq -c --arg sha "$SHA" --arg author "$MASKED_AUTHOR" --arg email "$MASKED_EMAIL" --arg msg "$MSG" --arg ts "$TS" \
-      '. + [{sha: $sha, author: $author, author_email: $email, message: $msg, timestamp: $ts}]')
+    MASKED_COMMITS=$(echo "$MASKED_COMMITS" | jq -c \
+      --arg sha "$SHA" \
+      --arg author "$MASKED_AUTHOR" \
+      --arg email "$MASKED_EMAIL" \
+      --arg gh_user "$MASKED_GH_USERNAME" \
+      --arg msg "$MSG" \
+      --arg ts "$TS" \
+      '. + [{sha: $sha, author: $author, author_email: $email, github_username: (if $gh_user == "" then null else $gh_user end), message: $msg, timestamp: $ts}]')
   done
   PR_COMMITS="$MASKED_COMMITS"
   echo "🔒 Masked $(echo "$RAW_PR_COMMITS" | jq 'length') commit authors"
