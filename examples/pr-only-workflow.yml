@@ -29,7 +29,7 @@ jobs:
 
       - name: Analyze PR with Dev XP
         id: devxp
-        uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+        uses: Karimov-Labs/dev-xp-analyzer@main
         with:
           api-token: ${{ secrets.DEVXP_API_TOKEN }}
           event-type: pull_request

@@ -34,7 +34,7 @@ jobs:
       # Run Dev XP analysis
       - name: Analyze with Dev XP
         id: devxp
-        uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+        uses: Karimov-Labs/dev-xp-analyzer@main
         with:
           # Required: Your Dev XP API token
           # Get it from: https://devxp.io/dashboard/settings/api-tokens

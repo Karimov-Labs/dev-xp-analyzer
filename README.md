@@ -54,7 +54,7 @@ jobs:
           fetch-depth: 2  # Need at least 2 commits for diff
 
       - name: Analyze with Dev XP
-        uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+        uses: Karimov-Labs/dev-xp-analyzer@main
         with:
           api-token: ${{ secrets.DEVXP_API_TOKEN }}
 ```
@@ -102,7 +102,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+      - uses: Karimov-Labs/dev-xp-analyzer@main
         with:
           api-token: ${{ secrets.DEVXP_API_TOKEN }}
 ```
@@ -125,7 +125,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history for PR diff
-      - uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+      - uses: Karimov-Labs/dev-xp-analyzer@main
         with:
           api-token: ${{ secrets.DEVXP_API_TOKEN }}
           event-type: pull_request
@@ -147,7 +147,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+      - uses: Karimov-Labs/dev-xp-analyzer@main
         with:
           api-token: ${{ secrets.DEVXP_API_TOKEN }}
           event-type: push
@@ -175,7 +175,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - uses: Karimov-Labs/dev-xp/actions/dev-xp-scanner@main
+      - uses: Karimov-Labs/dev-xp-analyzer@main
         with:
           api-token: ${{ secrets.DEVXP_API_TOKEN }}
           # Enable username masking - all usernames will be SHA-256 hashed
@@ -211,7 +211,7 @@ jobs:
 
       - name: Analyze with Dev XP
         id: devxp
-        uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+        uses: Karimov-Labs/dev-xp-analyzer@main
         with:
           api-token: ${{ secrets.DEVXP_API_TOKEN }}
 
@@ -238,7 +238,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+      - uses: Karimov-Labs/dev-xp-analyzer@main
         with:
           api-token: ${{ secrets.DEVXP_API_TOKEN }}
           api-endpoint: https://devxp.your-company.com
@@ -307,7 +307,7 @@ Your Repository → GitHub Action → SHA-256 Hash → Dev XP API
 Make sure you're passing the `api-token` input:
 
 ```yaml
-- uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+- uses: Karimov-Labs/dev-xp-analyzer@main
   with:
     api-token: ${{ secrets.DEVXP_API_TOKEN }}  # Don't forget this!
 ```

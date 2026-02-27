@@ -33,7 +33,7 @@ jobs:
           fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 2 }}
 
       - name: Analyze with Dev XP
-        uses: Karimov-Labs/dev-xp/actions/dev-xp-agent@main
+        uses: Karimov-Labs/dev-xp-analyzer@main
         with:
           api-token: ${{ secrets.DEVXP_API_TOKEN }}
           # Increase max files for monorepos
