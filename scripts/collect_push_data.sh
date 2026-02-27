@@ -90,24 +90,24 @@ MERGED_FILES=$(echo "$FILES_JSON" | jq -c --argjson stats "$STATS_JSON" '
   map(. + ($stats[.filename] // {additions: 0, deletions: 0}))
 ')
 
-# Resolve GitHub username from commit SHA via GitHub API
-# This gives us the actual GitHub login (e.g. "kerimovscreations") linked to the
+# Resolve VCS username from commit SHA via provider API
+# This gives us the actual provider login (e.g. "kerimovscreations") linked to the
 # commit email, which is more reliable than github.actor (the workflow trigger).
-RAW_GITHUB_USERNAME=""
+RAW_VCS_USERNAME=""
 if [ -n "$COMMIT_SHA" ] && [ -n "$GITHUB_REPOSITORY" ]; then
-  echo "🔍 Resolving GitHub username for commit $COMMIT_SHA..."
-  RAW_GITHUB_USERNAME=$(gh api "/repos/$GITHUB_REPOSITORY/commits/$COMMIT_SHA" --jq '.author.login // empty' 2>/dev/null || echo "")
-  if [ -n "$RAW_GITHUB_USERNAME" ]; then
-    echo "✅ Resolved GitHub username: $RAW_GITHUB_USERNAME"
+  echo "🔍 Resolving VCS username for commit $COMMIT_SHA..."
+  RAW_VCS_USERNAME=$(gh api "/repos/$GITHUB_REPOSITORY/commits/$COMMIT_SHA" --jq '.author.login // empty' 2>/dev/null || echo "")
+  if [ -n "$RAW_VCS_USERNAME" ]; then
+    echo "✅ Resolved VCS username: $RAW_VCS_USERNAME"
   else
-    echo "⚠️  Could not resolve GitHub username from commit (author may not have a linked GitHub account)"
+    echo "⚠️  Could not resolve VCS username from commit (author may not have a linked account)"
   fi
 fi
 
-# Apply masking to GitHub username if enabled
-GITHUB_USERNAME=""
-if [ -n "$RAW_GITHUB_USERNAME" ]; then
-  GITHUB_USERNAME=$(/tmp/mask_username.sh "$RAW_GITHUB_USERNAME" "$SALT")
+# Apply masking to VCS username if enabled
+VCS_USERNAME=""
+if [ -n "$RAW_VCS_USERNAME" ]; then
+  VCS_USERNAME=$(/tmp/mask_username.sh "$RAW_VCS_USERNAME" "$SALT")
 fi
 
 # Build commits array (single commit for push)
@@ -115,7 +115,7 @@ COMMITS_JSON=$(jq -n \
   --arg sha "$COMMIT_SHA" \
   --arg author "$AUTHOR" \
   --arg email "$AUTHOR_EMAIL" \
-  --arg github_username "$GITHUB_USERNAME" \
+  --arg vcs_username "$VCS_USERNAME" \
   --arg message "$COMMIT_MESSAGE" \
   --arg date "$COMMIT_DATE" \
   --argjson files "$MERGED_FILES" \
@@ -123,7 +123,7 @@ COMMITS_JSON=$(jq -n \
     sha: $sha,
     author: $author,
     author_email: $email,
-    github_username: (if $github_username == "" then null else $github_username end),
+    vcs_username: (if $vcs_username == "" then null else $vcs_username end),
     message: $message,
     timestamp: $date,
     files: $files

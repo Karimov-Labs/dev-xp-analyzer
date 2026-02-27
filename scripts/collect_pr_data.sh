@@ -40,7 +40,7 @@ RAW_PR_COMMITS=$(gh api \
     sha: .sha,
     author: .commit.author.name,
     author_email: .commit.author.email,
-    github_username: (.author.login // null),
+    vcs_username: (.author.login // null),
     message: .commit.message,
     timestamp: .commit.author.date
   }]'
@@ -57,7 +57,7 @@ if [ "$MASKING_ENABLED" = "true" ]; then
     SHA=$(_jq '.sha')
     RAW_COMMIT_AUTHOR=$(_jq '.author')
     RAW_COMMIT_EMAIL=$(_jq '.author_email')
-    RAW_GH_USERNAME=$(_jq '.github_username // empty')
+    RAW_GH_USERNAME=$(_jq '.vcs_username // empty')
     MSG=$(_jq '.message')
     TS=$(_jq '.timestamp')
 
@@ -75,7 +75,7 @@ if [ "$MASKING_ENABLED" = "true" ]; then
       --arg gh_user "$MASKED_GH_USERNAME" \
       --arg msg "$MSG" \
       --arg ts "$TS" \
-      '. + [{sha: $sha, author: $author, author_email: $email, github_username: (if $gh_user == "" then null else $gh_user end), message: $msg, timestamp: $ts}]')
+      '. + [{sha: $sha, author: $author, author_email: $email, vcs_username: (if $gh_user == "" then null else $gh_user end), message: $msg, timestamp: $ts}]')
   done
   PR_COMMITS="$MASKED_COMMITS"
   echo "🔒 Masked $(echo "$RAW_PR_COMMITS" | jq 'length') commit authors"
