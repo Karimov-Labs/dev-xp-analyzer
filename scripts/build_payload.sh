@@ -9,6 +9,12 @@ SENDER=$(/tmp/mask_username.sh "$RAW_SENDER" "$MASKING_SALT")
 SOURCE_EVENT_ID="$INPUT_SOURCE_EVENT_ID"
 EXTERNAL_REPO_ID="$GITHUB_REPOSITORY_ID"
 
+if [ "$MASKING_ENABLED" = "true" ]; then
+  INGESTION_MODE="masked"
+else
+  INGESTION_MODE="open"
+fi
+
 REPOSITORY_SOURCE=$(printf '%s' "$GITHUB_SERVER_URL" | sed -E 's#^https?://##; s#/.*$##')
 if [ -z "$REPOSITORY_SOURCE" ]; then
   REPOSITORY_SOURCE="github.com"
@@ -30,6 +36,7 @@ if [ "$EVENT_TYPE" = "push" ]; then
     --arg source_event_id "$SOURCE_EVENT_ID" \
     --argjson commits "$COMMITS_JSON" \
     --argjson usernames_masked "$MASKING_ENABLED" \
+    --arg ingestion_mode "$INGESTION_MODE" \
     '{
       repository: $repo,
       repository_url: $repo_url,
@@ -41,6 +48,7 @@ if [ "$EVENT_TYPE" = "push" ]; then
       event_type: $event_type,
       sender: $sender,
       usernames_masked: $usernames_masked,
+      ingestion_mode: $ingestion_mode,
       commits: $commits,
       source_event_id: (if $source_event_id == "" then null else $source_event_id end)
     }'
@@ -59,6 +67,7 @@ else
     --arg source_event_id "$SOURCE_EVENT_ID" \
     --argjson pull_request "$PR_DATA_JSON" \
     --argjson usernames_masked "$MASKING_ENABLED" \
+    --arg ingestion_mode "$INGESTION_MODE" \
     '{
       repository: $repo,
       repository_url: $repo_url,
@@ -70,6 +79,7 @@ else
       event_type: $event_type,
       sender: $sender,
       usernames_masked: $usernames_masked,
+      ingestion_mode: $ingestion_mode,
       pull_request: $pull_request,
       source_event_id: (if $source_event_id == "" then null else $source_event_id end)
     }'
