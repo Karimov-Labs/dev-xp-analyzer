@@ -11,8 +11,13 @@ EXTERNAL_REPO_ID="$GITHUB_REPOSITORY_ID"
 
 if [ "$MASKING_ENABLED" = "true" ]; then
   INGESTION_MODE="masked"
+  REPO=$(/tmp/mask_username.sh "$GITHUB_REPOSITORY" "$MASKING_SALT")
+  REPO_URL=""
+  echo "🔒 Masked repo: $GITHUB_REPOSITORY -> $REPO"
 else
   INGESTION_MODE="open"
+  REPO="$GITHUB_REPOSITORY"
+  REPO_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
 fi
 
 REPOSITORY_SOURCE=$(printf '%s' "$GITHUB_SERVER_URL" | sed -E 's#^https?://##; s#/.*$##')
@@ -24,14 +29,14 @@ PROVIDER="github"
 
 if [ "$EVENT_TYPE" = "push" ]; then
   PAYLOAD=$(jq -n \
-    --arg repo "$GITHUB_REPOSITORY" \
+    --arg repo "$REPO" \
     --arg ref "$GITHUB_REF" \
     --arg event_type "push" \
     --arg sender "$SENDER" \
     --arg provider "$PROVIDER" \
     --arg repository_source "$REPOSITORY_SOURCE" \
     --arg external_repo_id "$EXTERNAL_REPO_ID" \
-    --arg repo_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+    --arg repo_url "$REPO_URL" \
     --arg default_branch "$DEFAULT_BRANCH" \
     --arg source_event_id "$SOURCE_EVENT_ID" \
     --argjson commits "$COMMITS_JSON" \
@@ -39,7 +44,7 @@ if [ "$EVENT_TYPE" = "push" ]; then
     --arg ingestion_mode "$INGESTION_MODE" \
     '{
       repository: $repo,
-      repository_url: $repo_url,
+      repository_url: (if $repo_url == "" then null else $repo_url end),
       provider: $provider,
       repository_source: $repository_source,
       external_repo_id: (if $external_repo_id == "" then null else $external_repo_id end),
@@ -55,14 +60,14 @@ if [ "$EVENT_TYPE" = "push" ]; then
   )
 else
   PAYLOAD=$(jq -n \
-    --arg repo "$GITHUB_REPOSITORY" \
+    --arg repo "$REPO" \
     --arg ref "$GITHUB_REF" \
     --arg event_type "pull_request" \
     --arg sender "$SENDER" \
     --arg provider "$PROVIDER" \
     --arg repository_source "$REPOSITORY_SOURCE" \
     --arg external_repo_id "$EXTERNAL_REPO_ID" \
-    --arg repo_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+    --arg repo_url "$REPO_URL" \
     --arg default_branch "$DEFAULT_BRANCH" \
     --arg source_event_id "$SOURCE_EVENT_ID" \
     --argjson pull_request "$PR_DATA_JSON" \
@@ -70,7 +75,7 @@ else
     --arg ingestion_mode "$INGESTION_MODE" \
     '{
       repository: $repo,
-      repository_url: $repo_url,
+      repository_url: (if $repo_url == "" then null else $repo_url end),
       provider: $provider,
       repository_source: $repository_source,
       external_repo_id: (if $external_repo_id == "" then null else $external_repo_id end),

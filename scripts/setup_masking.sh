@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-MASK_ENABLED="$INPUT_MASK_USERNAMES"
+MASK_ENABLED="$INPUT_MASK_IDENTITIES"
 SALT="$INPUT_MASKING_SALT"
 
 if [ "$MASK_ENABLED" = "true" ]; then
-  echo "🔒 Username masking ENABLED (SHA-256)"
+  echo "🔒 Identity masking ENABLED (SHA-256 — usernames + repo names)"
   echo "enabled=true" >> $GITHUB_OUTPUT
 
   # Create masking script
@@ -21,7 +21,7 @@ fi
 MASKEOF
   chmod +x /tmp/mask_username.sh
 else
-  echo "🔓 Username masking DISABLED (plain text)"
+  echo "🔓 Identity masking DISABLED (plain text)"
   echo "enabled=false" >> $GITHUB_OUTPUT
 
   # Create pass-through script
