@@ -5,13 +5,13 @@ echo "📦 Building payload..."
 
 # Variables
 EVENT_TYPE="$DETECTED_EVENT_TYPE"
-SENDER=$(/tmp/mask_username.sh "$RAW_SENDER" "$MASKING_SALT")
+SENDER=$(bash /tmp/mask_username.sh "$RAW_SENDER" "$MASKING_SALT")
 SOURCE_EVENT_ID="$INPUT_SOURCE_EVENT_ID"
 EXTERNAL_REPO_ID="$GITHUB_REPOSITORY_ID"
 
 if [ "$MASKING_ENABLED" = "true" ]; then
   INGESTION_MODE="masked"
-  REPO=$(/tmp/mask_username.sh "$GITHUB_REPOSITORY" "$MASKING_SALT")
+  REPO=$(bash /tmp/mask_username.sh "$GITHUB_REPOSITORY" "$MASKING_SALT")
   REPO_URL=""
   echo "🔒 Masked repo: $GITHUB_REPOSITORY -> $REPO"
 else

@@ -8,7 +8,7 @@ REPO_FULL_NAME="$GITHUB_REPOSITORY"
 
 # Apply masking if enabled
 SALT="$MASKING_SALT"
-PR_AUTHOR=$(/tmp/mask_username.sh "$RAW_PR_AUTHOR" "$SALT")
+PR_AUTHOR=$(bash /tmp/mask_username.sh "$RAW_PR_AUTHOR" "$SALT")
 
 if [ "$MASKING_ENABLED" = "true" ]; then
   echo "🔒 Masked PR author: $RAW_PR_AUTHOR -> $PR_AUTHOR"
@@ -61,11 +61,11 @@ if [ "$MASKING_ENABLED" = "true" ]; then
     MSG=$(_jq '.message')
     TS=$(_jq '.timestamp')
 
-    MASKED_AUTHOR=$(/tmp/mask_username.sh "$RAW_COMMIT_AUTHOR" "$SALT")
-    MASKED_EMAIL=$(/tmp/mask_username.sh "$RAW_COMMIT_EMAIL" "$SALT")
+    MASKED_AUTHOR=$(bash /tmp/mask_username.sh "$RAW_COMMIT_AUTHOR" "$SALT")
+    MASKED_EMAIL=$(bash /tmp/mask_username.sh "$RAW_COMMIT_EMAIL" "$SALT")
     MASKED_GH_USERNAME=""
     if [ -n "$RAW_GH_USERNAME" ]; then
-      MASKED_GH_USERNAME=$(/tmp/mask_username.sh "$RAW_GH_USERNAME" "$SALT")
+      MASKED_GH_USERNAME=$(bash /tmp/mask_username.sh "$RAW_GH_USERNAME" "$SALT")
     fi
 
     MASKED_COMMITS=$(echo "$MASKED_COMMITS" | jq -c \

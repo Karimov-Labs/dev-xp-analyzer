@@ -46,8 +46,8 @@ COMMIT_DATE=$(git log -1 --format='%aI' $COMMIT_SHA)
 
 # Apply username masking if enabled
 SALT="$MASKING_SALT"
-AUTHOR=$(/tmp/mask_username.sh "$RAW_AUTHOR" "$SALT")
-AUTHOR_EMAIL=$(/tmp/mask_username.sh "$RAW_AUTHOR_EMAIL" "$SALT")
+AUTHOR=$(bash /tmp/mask_username.sh "$RAW_AUTHOR" "$SALT")
+AUTHOR_EMAIL=$(bash /tmp/mask_username.sh "$RAW_AUTHOR_EMAIL" "$SALT")
 
 if [ "$MASKING_ENABLED" = "true" ]; then
   echo "🔒 Masked author: $RAW_AUTHOR -> $AUTHOR"
@@ -107,7 +107,7 @@ fi
 # Apply masking to VCS username if enabled
 VCS_USERNAME=""
 if [ -n "$RAW_VCS_USERNAME" ]; then
-  VCS_USERNAME=$(/tmp/mask_username.sh "$RAW_VCS_USERNAME" "$SALT")
+  VCS_USERNAME=$(bash /tmp/mask_username.sh "$RAW_VCS_USERNAME" "$SALT")
 fi
 
 # Build commits array (single commit for push)
