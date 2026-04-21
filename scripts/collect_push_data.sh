@@ -39,19 +39,11 @@ else
 fi
 
 # Collect commit info
-RAW_AUTHOR=$(git log -1 --format='%an' $COMMIT_SHA)
 RAW_AUTHOR_EMAIL=$(git log -1 --format='%ae' $COMMIT_SHA)
 COMMIT_MESSAGE=$(git log -1 --format='%s' $COMMIT_SHA)
 COMMIT_DATE=$(git log -1 --format='%aI' $COMMIT_SHA)
-
-# Apply username masking if enabled
+RAW_AUTHOR=""
 SALT="$MASKING_SALT"
-AUTHOR=$(bash /tmp/mask_username.sh "$RAW_AUTHOR" "$SALT")
-AUTHOR_EMAIL=$(bash /tmp/mask_username.sh "$RAW_AUTHOR_EMAIL" "$SALT")
-
-if [ "$MASKING_ENABLED" = "true" ]; then
-  echo "🔒 Masked author: $RAW_AUTHOR -> $AUTHOR"
-fi
 
 # Get changed files with stats
 # Use git show for single-commit diff (works with shallow clones), git diff for range
@@ -96,12 +88,43 @@ MERGED_FILES=$(echo "$FILES_JSON" | jq -c --argjson stats "$STATS_JSON" '
 RAW_VCS_USERNAME=""
 if [ -n "$COMMIT_SHA" ] && [ -n "$GITHUB_REPOSITORY" ]; then
   echo "🔍 Resolving VCS username for commit $COMMIT_SHA..."
-  RAW_VCS_USERNAME=$(gh api "/repos/$GITHUB_REPOSITORY/commits/$COMMIT_SHA" --jq '.author.login // empty' 2>/dev/null || echo "")
-  if [ -n "$RAW_VCS_USERNAME" ]; then
-    echo "✅ Resolved VCS username: $RAW_VCS_USERNAME"
+
+  set +e
+  COMMIT_LOOKUP_JSON=$(gh api "/repos/$GITHUB_REPOSITORY/commits/$COMMIT_SHA" 2>&1)
+  COMMIT_LOOKUP_EXIT=$?
+  set -e
+
+  if [ $COMMIT_LOOKUP_EXIT -eq 0 ]; then
+    RAW_VCS_USERNAME=$(printf '%s' "$COMMIT_LOOKUP_JSON" | jq -r '.author.login // empty')
+    if [ -n "$RAW_VCS_USERNAME" ]; then
+      RAW_AUTHOR="$RAW_VCS_USERNAME"
+      echo "✅ Resolved VCS username: $RAW_VCS_USERNAME"
+    else
+      echo "❌ Could not resolve VCS username from commit because GitHub returned null author.login"
+      echo "💡 This usually means the commit author is not linked to a GitHub account for this commit"
+      echo "💡 Dev XP requires GitHub usernames for commit attribution and Backstage unmasking"
+      exit 1
+    fi
   else
-    echo "⚠️  Could not resolve VCS username from commit (author may not have a linked account)"
+    echo "❌ Failed to resolve VCS username from GitHub API (gh api exited with code $COMMIT_LOOKUP_EXIT)"
+    echo "💡 This can be caused by network/proxy/DNS/TLS issues on enterprise runners, GitHub API auth problems, rate limits, or host misconfiguration"
+    echo "gh api error: $(printf '%s' "$COMMIT_LOOKUP_JSON" | tr '\n' ' ' | cut -c 1-400)"
+    exit 1
   fi
+else
+  echo "❌ Cannot resolve VCS username because COMMIT_SHA or GITHUB_REPOSITORY is missing"
+  exit 1
+fi
+
+# Apply username masking after author resolution so author only carries the GitHub login when available.
+AUTHOR=""
+if [ -n "$RAW_AUTHOR" ]; then
+  AUTHOR=$(bash /tmp/mask_username.sh "$RAW_AUTHOR" "$SALT")
+fi
+AUTHOR_EMAIL=$(bash /tmp/mask_username.sh "$RAW_AUTHOR_EMAIL" "$SALT")
+
+if [ "$MASKING_ENABLED" = "true" ] && [ -n "$RAW_AUTHOR" ]; then
+  echo "🔒 Masked author: $RAW_AUTHOR -> $AUTHOR"
 fi
 
 # Apply masking to VCS username if enabled
@@ -121,7 +144,7 @@ COMMITS_JSON=$(jq -n \
   --argjson files "$MERGED_FILES" \
   '[{
     sha: $sha,
-    author: $author,
+    author: (if $author == "" then null else $author end),
     author_email: $email,
     vcs_username: (if $vcs_username == "" then null else $vcs_username end),
     message: $message,

@@ -250,7 +250,7 @@ The action collects the following data for analysis:
 
 ### Push Events
 - Commit SHA
-- Author name and email
+- Author login, required for every analyzed commit
 - Commit message
 - Timestamp
 - Changed files with addition/deletion counts
@@ -259,7 +259,7 @@ The action collects the following data for analysis:
 - PR number and title
 - PR author
 - Merge timestamp
-- All commits in the PR
+- All commits in the PR, each with a required commit author login
 - Changed files with addition/deletion counts
 
 ## Security
@@ -278,7 +278,7 @@ For organizations with strict privacy requirements:
 | **Algorithm** | SHA-256 cryptographic hash |
 | **Output** | 16-character hex string |
 | **Salting** | Optional organization-wide salt for correlation |
-| **Scope** | Author names, emails, and sender usernames |
+| **Scope** | GitHub usernames when available, plus emails and sender usernames |
 | **Timing** | Hashing occurs locally before data leaves your environment |
 
 **When to use username masking:**
@@ -330,6 +330,37 @@ Ensure you're checking out with enough history:
     fetch-depth: 2  # Minimum for push events
     # or fetch-depth: 0 for full history (PRs)
 ```
+
+### "Could not resolve VCS username from commit" Error
+
+The action now fails when it cannot resolve a GitHub username for a commit, because Dev XP requires login-based identities for commit attribution and Backstage unmasking.
+
+That error can come from two different situations during push analysis:
+
+1. GitHub API request succeeded, but the commit is not associated with a GitHub user account.
+2. GitHub API request failed, and the runner could not complete the commit lookup.
+
+Common causes for case 1:
+- The commit author email is not verified or not attached to the GitHub account.
+- The commit was authored with a display name/email that does not map to the user's GitHub identity.
+- The commit came from a bot, mirrored source, imported history, or another unlinked account.
+
+Common causes for case 2, especially on enterprise internal runners:
+- Outbound network access to the GitHub API host is blocked or unstable.
+- Proxy, DNS, firewall, or TLS trust configuration is incomplete.
+- `GH_TOKEN` is missing, invalid, or lacks repository access.
+- The runner is targeting the wrong GitHub host or API endpoint.
+- GitHub API rate limiting or transient API failures.
+
+To diagnose it, run the commit lookup directly on the runner:
+
+```bash
+gh api "/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA"
+```
+
+If the request succeeds, inspect whether `.author.login` is null. If the request fails, the problem is connectivity, auth, or host configuration rather than commit identity linkage.
+
+For pull request events, the action also fails if any commit in the PR is missing `.author.login`.
 
 ### Rate Limiting
 

@@ -38,13 +38,21 @@ RAW_PR_COMMITS=$(gh api \
   "/repos/$REPO_FULL_NAME/pulls/$PR_NUMBER/commits" \
   | jq -c '[.[] | {
     sha: .sha,
-    author: .commit.author.name,
+    author: (.author.login // ""),
     author_email: .commit.author.email,
     vcs_username: (.author.login // null),
     message: .commit.message,
     timestamp: .commit.author.date
   }]'
 )
+
+MISSING_PR_AUTHOR_COUNT=$(echo "$RAW_PR_COMMITS" | jq '[.[] | select(.author == "")] | length')
+if [ "$MISSING_PR_AUTHOR_COUNT" -gt 0 ]; then
+  echo "❌ Failed to resolve GitHub usernames for $MISSING_PR_AUTHOR_COUNT PR commit(s)"
+  echo "💡 Dev XP requires GitHub usernames for commit attribution and Backstage unmasking"
+  echo "$RAW_PR_COMMITS" | jq -r '.[] | select(.author == "") | "- missing login for commit \(.sha)"'
+  exit 1
+fi
 
 # Apply masking to commit authors if enabled
 if [ "$MASKING_ENABLED" = "true" ]; then
@@ -61,7 +69,10 @@ if [ "$MASKING_ENABLED" = "true" ]; then
     MSG=$(_jq '.message')
     TS=$(_jq '.timestamp')
 
-    MASKED_AUTHOR=$(bash /tmp/mask_username.sh "$RAW_COMMIT_AUTHOR" "$SALT")
+    MASKED_AUTHOR=""
+    if [ -n "$RAW_COMMIT_AUTHOR" ]; then
+      MASKED_AUTHOR=$(bash /tmp/mask_username.sh "$RAW_COMMIT_AUTHOR" "$SALT")
+    fi
     MASKED_EMAIL=$(bash /tmp/mask_username.sh "$RAW_COMMIT_EMAIL" "$SALT")
     MASKED_GH_USERNAME=""
     if [ -n "$RAW_GH_USERNAME" ]; then
@@ -75,7 +86,7 @@ if [ "$MASKING_ENABLED" = "true" ]; then
       --arg gh_user "$MASKED_GH_USERNAME" \
       --arg msg "$MSG" \
       --arg ts "$TS" \
-      '. + [{sha: $sha, author: $author, author_email: $email, vcs_username: (if $gh_user == "" then null else $gh_user end), message: $msg, timestamp: $ts}]')
+      '. + [{sha: $sha, author: (if $author == "" then null else $author end), author_email: $email, vcs_username: (if $gh_user == "" then null else $gh_user end), message: $msg, timestamp: $ts}]')
   done
   PR_COMMITS="$MASKED_COMMITS"
   echo "🔒 Masked $(echo "$RAW_PR_COMMITS" | jq 'length') commit authors"
