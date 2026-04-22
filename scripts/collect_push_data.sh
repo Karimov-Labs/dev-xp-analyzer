@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-echo "[devxp-analyzer] collect_push_data.sh marker: FX-003-ghes-curl"
-
 echo "📥 Collecting push event data..."
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then

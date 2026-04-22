@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-echo "[devxp-analyzer] build_payload.sh marker: FX-003-ghes-curl"
-
 echo "📦 Building payload..."
 
 # Variables
