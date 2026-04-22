@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-echo "[devxp-analyzer] collect_pr_data.sh marker: FX-003-ghes-curl"
-
 echo "📥 Collecting pull request event data..."
 
 # Variables passed from env
