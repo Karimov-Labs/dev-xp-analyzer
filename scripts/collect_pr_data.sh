@@ -1,10 +1,43 @@
 #!/bin/bash
 set -e
 
+echo "[devxp-analyzer] collect_pr_data.sh marker: FX-003-ghes-curl"
+
 echo "📥 Collecting pull request event data..."
 
 # Variables passed from env
 REPO_FULL_NAME="$GITHUB_REPOSITORY"
+API_BASE_URL="${GITHUB_API_URL:-https://api.github.com}"
+
+api_get_body() {
+  local path="$1"
+  local response
+  local http_code
+  local body
+
+  response=$(curl -sS -L -w "\n%{http_code}" \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer ${GH_TOKEN}" \
+    "${API_BASE_URL}${path}")
+
+  http_code=$(printf '%s' "$response" | tail -n1)
+  body=$(printf '%s' "$response" | sed '$d')
+
+  if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+    printf '%s' "$body"
+    return 0
+  fi
+
+  local api_error
+  api_error=$(printf '%s' "$body" | jq -r '.message // .error // empty' 2>/dev/null)
+  if [ -z "$api_error" ]; then
+    api_error=$(printf '%s' "$body" | tr '\n' ' ' | cut -c 1-400)
+  fi
+
+  echo "❌ GitHub API request failed for ${path} (HTTP ${http_code})"
+  echo "api error: $api_error"
+  return 1
+}
 
 # Apply masking if enabled
 SALT="$MASKING_SALT"
@@ -17,11 +50,8 @@ fi
 echo "📊 Analyzing PR #$PR_NUMBER: $PR_TITLE"
 
 # Fetch PR files using GitHub API
-PR_FILES=$(gh api \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  "/repos/$REPO_FULL_NAME/pulls/$PR_NUMBER/files?per_page=$INPUT_MAX_FILES" \
-  | jq -c '[.[] | {
+PR_FILES_RAW=$(api_get_body "/repos/$REPO_FULL_NAME/pulls/$PR_NUMBER/files?per_page=$INPUT_MAX_FILES")
+PR_FILES=$(echo "$PR_FILES_RAW" | jq -c '[.[] | {
     filename: .filename,
     status: .status,
     additions: .additions,
@@ -32,11 +62,8 @@ PR_FILES=$(gh api \
 )
 
 # Fetch PR commits and apply masking if enabled
-RAW_PR_COMMITS=$(gh api \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  "/repos/$REPO_FULL_NAME/pulls/$PR_NUMBER/commits" \
-  | jq -c '[.[] | {
+RAW_PR_COMMITS_RAW=$(api_get_body "/repos/$REPO_FULL_NAME/pulls/$PR_NUMBER/commits")
+RAW_PR_COMMITS=$(echo "$RAW_PR_COMMITS_RAW" | jq -c '[.[] | {
     sha: .sha,
     author: (.author.login // ""),
     author_email: .commit.author.email,

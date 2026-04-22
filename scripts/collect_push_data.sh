@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+echo "[devxp-analyzer] collect_push_data.sh marker: FX-003-ghes-curl"
+
 echo "📥 Collecting push event data..."
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -11,6 +13,15 @@ fi
 # Get commit details
 COMMIT_SHA="$GITHUB_SHA"
 BEFORE_SHA="$GITHUB_EVENT_BEFORE"
+API_BASE_URL="${GITHUB_API_URL:-https://api.github.com}"
+
+api_get() {
+  local path="$1"
+  curl -sS -L -w "\n%{http_code}" \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer ${GH_TOKEN}" \
+    "${API_BASE_URL}${path}"
+}
 
 # Handle first push (no before SHA)
 if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
@@ -90,25 +101,38 @@ if [ -n "$COMMIT_SHA" ] && [ -n "$GITHUB_REPOSITORY" ]; then
   echo "🔍 Resolving VCS username for commit $COMMIT_SHA..."
 
   set +e
-  COMMIT_LOOKUP_JSON=$(gh api "/repos/$GITHUB_REPOSITORY/commits/$COMMIT_SHA" 2>&1)
+  COMMIT_LOOKUP_RESPONSE=$(api_get "/repos/$GITHUB_REPOSITORY/commits/$COMMIT_SHA" 2>&1)
   COMMIT_LOOKUP_EXIT=$?
   set -e
 
   if [ $COMMIT_LOOKUP_EXIT -eq 0 ]; then
-    RAW_VCS_USERNAME=$(printf '%s' "$COMMIT_LOOKUP_JSON" | jq -r '.author.login // empty')
-    if [ -n "$RAW_VCS_USERNAME" ]; then
-      RAW_AUTHOR="$RAW_VCS_USERNAME"
-      echo "✅ Resolved VCS username: $RAW_VCS_USERNAME"
+    COMMIT_LOOKUP_HTTP_CODE=$(printf '%s' "$COMMIT_LOOKUP_RESPONSE" | tail -n1)
+    COMMIT_LOOKUP_JSON=$(printf '%s' "$COMMIT_LOOKUP_RESPONSE" | sed '$d')
+
+    if [ "$COMMIT_LOOKUP_HTTP_CODE" -ge 200 ] && [ "$COMMIT_LOOKUP_HTTP_CODE" -lt 300 ]; then
+      RAW_VCS_USERNAME=$(printf '%s' "$COMMIT_LOOKUP_JSON" | jq -r '.author.login // empty')
+      if [ -n "$RAW_VCS_USERNAME" ]; then
+        RAW_AUTHOR="$RAW_VCS_USERNAME"
+        echo "✅ Resolved VCS username: $RAW_VCS_USERNAME"
+      else
+        echo "❌ Could not resolve VCS username from commit because provider returned null author.login"
+        echo "💡 This usually means the commit author is not linked to a GitHub account for this commit"
+        echo "💡 Dev XP requires GitHub usernames for commit attribution and Backstage unmasking"
+        exit 1
+      fi
     else
-      echo "❌ Could not resolve VCS username from commit because GitHub returned null author.login"
-      echo "💡 This usually means the commit author is not linked to a GitHub account for this commit"
-      echo "💡 Dev XP requires GitHub usernames for commit attribution and Backstage unmasking"
+      LOOKUP_ERROR=$(printf '%s' "$COMMIT_LOOKUP_JSON" | jq -r '.message // .error // empty' 2>/dev/null)
+      if [ -z "$LOOKUP_ERROR" ]; then
+        LOOKUP_ERROR=$(printf '%s' "$COMMIT_LOOKUP_JSON" | tr '\n' ' ' | cut -c 1-400)
+      fi
+      echo "❌ Failed to resolve VCS username from provider API (HTTP $COMMIT_LOOKUP_HTTP_CODE)"
+      echo "api error: $LOOKUP_ERROR"
       exit 1
     fi
   else
-    echo "❌ Failed to resolve VCS username from GitHub API (gh api exited with code $COMMIT_LOOKUP_EXIT)"
+    echo "❌ Failed to resolve VCS username from provider API (curl exited with code $COMMIT_LOOKUP_EXIT)"
     echo "💡 This can be caused by network/proxy/DNS/TLS issues on enterprise runners, GitHub API auth problems, rate limits, or host misconfiguration"
-    echo "gh api error: $(printf '%s' "$COMMIT_LOOKUP_JSON" | tr '\n' ' ' | cut -c 1-400)"
+    echo "api error: $(printf '%s' "$COMMIT_LOOKUP_RESPONSE" | tr '\n' ' ' | cut -c 1-400)"
     exit 1
   fi
 else

@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+echo "[devxp-analyzer] build_payload.sh marker: FX-003-ghes-curl"
+
 echo "📦 Building payload..."
 
 # Variables
@@ -8,6 +10,14 @@ EVENT_TYPE="$DETECTED_EVENT_TYPE"
 SENDER=$(bash /tmp/mask_username.sh "$RAW_SENDER" "$MASKING_SALT")
 SOURCE_EVENT_ID="$INPUT_SOURCE_EVENT_ID"
 EXTERNAL_REPO_ID="$GITHUB_REPOSITORY_ID"
+
+if [ "$EVENT_TYPE" = "pull_request" ] && [ -n "$PR_DATA_JSON" ]; then
+  PR_AUTHOR=$(echo "$PR_DATA_JSON" | jq -r '.author // empty' 2>/dev/null || true)
+  if [ -n "$PR_AUTHOR" ] && [ "$PR_AUTHOR" != "null" ]; then
+    SENDER="$PR_AUTHOR"
+    echo "👤 Using PR author as sender for pull_request event"
+  fi
+fi
 
 if [ "$MASKING_ENABLED" = "true" ]; then
   INGESTION_MODE="masked"
